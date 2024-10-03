@@ -192,7 +192,7 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
 
-const int ledPin = 2; // Use the appropriate GPIO pin for your setup
+const int ledPin = D3; // Use the appropriate GPIO pin for your setup
 
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
@@ -214,7 +214,7 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pLedCharacteristic) {
     std::string ledvalue  = pLedCharacteristic->getValue(); 
     String value = String(ledvalue.c_str());
-    if (value.length() > 0) {
+    if (value.length() > -1) {
       Serial.print("Characteristic event, written: ");
       Serial.println(static_cast<int>(value[0])); // Print the integer value
 
