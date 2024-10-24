@@ -1,4 +1,5 @@
 #include <Arduino.h>
+
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -11,12 +12,11 @@ bool deviceConnected = false;
 bool oldDeviceConnected = false;
 uint32_t value = 0;
 
-// Definieer de pinnen voor de RGB LED
-const int redPin = D1;    // Verander de pin als dat nodig is
-const int greenPin = D2;  // Verander de pin als dat nodig is
-const int bluePin = D3;   // Verander de pin als dat nodig is
+// Pin configuratie voor RGB LED
+const int redPin = D1;    // Pin voor Rood
+const int greenPin = D2;  // Pin voor Groen
+const int bluePin = D3;   // Pin voor Blauw
 
-// Zie de volgende voor het genereren van UUID's: https://www.uuidgenerator.net/
 #define SERVICE_UUID        "19b10000-e8f2-537e-4f6c-d104768a1214"
 #define SENSOR_CHARACTERISTIC_UUID "19b10001-e8f2-537e-4f6c-d104768a1214"
 #define LED_CHARACTERISTIC_UUID "19b10002-e8f2-537e-4f6c-d104768a1214"
@@ -33,48 +33,54 @@ class MyServerCallbacks: public BLEServerCallbacks {
 
 class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* pLedCharacteristic) {
-    std::string ledValue = pLedCharacteristic->getValue(); 
-    
-    if (ledValue.length() == 3) {  // Verwacht 3 bytes voor RGB
-      int redValue = ledValue[0];
-      int greenValue = ledValue[1];
-      int blueValue = ledValue[2];
+    std::string ledvalue = pLedCharacteristic->getValue(); 
+    if (ledvalue.length() > 0) {
+      Serial.print("Characteristic event, written: ");
+      int receivedValue = static_cast<int>(ledvalue[0]);
+      Serial.println(receivedValue); // Print de ontvangen waarde
 
-      // Print de waarden voor debugging
-      Serial.print("Red: ");
-      Serial.print(redValue);
-      Serial.print(", Green: ");
-      Serial.print(greenValue);
-      Serial.print(", Blue: ");
-      Serial.println(blueValue);
+      // Reset de RGB LED
+      digitalWrite(redPin, LOW);
+      digitalWrite(greenPin, LOW);
+      digitalWrite(bluePin, LOW);
 
-      // Zet de juiste helderheid op de RGB LED
-      analogWrite(redPin, redValue);
-      analogWrite(greenPin, greenValue);
-      analogWrite(bluePin, blueValue);
+      // Zet de juiste kleur aan
+      switch (receivedValue) {
+        case 1:
+          digitalWrite(greenPin, HIGH); // Zet groen aan
+          break;
+        case 2:
+          digitalWrite(redPin, HIGH); // Zet rood aan
+          break;
+        case 3:
+          digitalWrite(bluePin, HIGH); // Zet blauw aan
+          break;
+        case 0:
+        default:
+          // Zet alles uit
+          break;
+      }
     }
   }
 };
 
 void setup() {
   Serial.begin(115200);
-  
-  // Stel de pinnen in als OUTPUT
   pinMode(redPin, OUTPUT);
   pinMode(greenPin, OUTPUT);
   pinMode(bluePin, OUTPUT);
-
-  // Maak het BLE apparaat aan
+  
+  // Create the BLE Device
   BLEDevice::init("TIEMEN");
 
-  // Maak de BLE server aan
+  // Create the BLE Server
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
 
-  // Maak de BLE service aan
+  // Create the BLE Service
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  // Maak een BLE characteristic aan
+  // Create a BLE Characteristic
   pSensorCharacteristic = pService->createCharacteristic(
                       SENSOR_CHARACTERISTIC_UUID,
                       BLECharacteristic::PROPERTY_READ   |
@@ -83,54 +89,52 @@ void setup() {
                       BLECharacteristic::PROPERTY_INDICATE
                     );
 
-  // Maak de LED characteristic aan
+  // Create the ON button Characteristic
   pLedCharacteristic = pService->createCharacteristic(
                       LED_CHARACTERISTIC_UUID,
                       BLECharacteristic::PROPERTY_WRITE
                     );
 
-  // Registreer de callback voor de LED characteristic
+  // Register the callback for the ON button characteristic
   pLedCharacteristic->setCallbacks(new MyCharacteristicCallbacks());
 
-  // Voeg een descriptor toe aan de characteristics
+  // Create a BLE Descriptor
   pSensorCharacteristic->addDescriptor(new BLE2902());
   pLedCharacteristic->addDescriptor(new BLE2902());
 
-  // Start de service
+  // Start the service
   pService->start();
 
   // Start advertising
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(false);
-  pAdvertising->setMinPreferred(0x0);  // Zet de waarde naar 0x00 om deze parameter niet te adverteren
+  pAdvertising->setMinPreferred(0x0);  
   BLEDevice::startAdvertising();
-  Serial.println("Wachten op een client verbinding om te notificeren...");
+  Serial.println("Waiting a client connection to notify...");
 }
 
 void loop() {
-  // Notify veranderde waarde
+  // notify changed value
   if (deviceConnected) {
     pSensorCharacteristic->setValue(String(value).c_str());
     pSensorCharacteristic->notify();
     value++;
-    Serial.print("Nieuwe waarde genotificeerd: ");
+    Serial.print("New value notified: ");
     Serial.println(value);
-    delay(3000); // Vertraag om congestie van het bluetooth stack te voorkomen
+    delay(3000);
   }
-
-  // Bij disconnectie
+  // disconnecting
   if (!deviceConnected && oldDeviceConnected) {
-    Serial.println("Apparaat losgekoppeld.");
-    delay(500); // Geef het bluetooth stack de kans om zich klaar te maken
-    pServer->startAdvertising(); // Start advertising opnieuw
+    Serial.println("Device disconnected.");
+    delay(500); // give the bluetooth stack the chance to get things ready
+    pServer->startAdvertising(); // restart advertising
     Serial.println("Start advertising");
     oldDeviceConnected = deviceConnected;
   }
-
-  // Bij connectie
+  // connecting
   if (deviceConnected && !oldDeviceConnected) {
     oldDeviceConnected = deviceConnected;
-    Serial.println("Apparaat verbonden.");
+    Serial.println("Device Connected");
   }
 }
