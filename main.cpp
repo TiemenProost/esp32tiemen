@@ -1,5 +1,4 @@
 #include <Arduino.h>
-
 #include <BLEDevice.h>
 #include <BLEServer.h>
 #include <BLEUtils.h>
@@ -39,27 +38,28 @@ class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
       int receivedValue = static_cast<int>(ledvalue[0]);
       Serial.println(receivedValue); // Print de ontvangen waarde
 
-      // Reset de RGB LED
+      // Reset de RGB LED (zet alles uit)
       digitalWrite(redPin, LOW);
       digitalWrite(greenPin, LOW);
       digitalWrite(bluePin, LOW);
 
-      // Zet de juiste kleur aan
-      switch (receivedValue) {
-        case 1:
-          digitalWrite(greenPin, HIGH); // Zet groen aan
-          break;
-        case 2:
-          digitalWrite(redPin, HIGH); // Zet rood aan
-          break;
-        case 3:
-          digitalWrite(bluePin, HIGH); // Zet blauw aan
-          break;
-        case 0:
-        default:
-          // Zet alles uit
-          break;
-      }
+ if (receivedValue == 1) {
+    digitalWrite(greenPin, HIGH); // Zet groen aan
+    digitalWrite(redPin, LOW);    // Zet rood uit
+    digitalWrite(bluePin, LOW);   // Zet blauw uit
+    Serial.println("groen is aan"); // Correcte functie voor printen
+} else if (receivedValue == 2) {
+    digitalWrite(greenPin, LOW);   // Zet groen uit
+    digitalWrite(redPin, HIGH);     // Zet rood aan
+    digitalWrite(bluePin, LOW);     // Zet blauw uit
+    Serial.println("rood is aan"); // Correcte functie voor printen
+} else if (receivedValue == 3) {
+    digitalWrite(greenPin, LOW);    // Zet groen uit
+    digitalWrite(redPin, LOW);      // Zet rood uit
+    digitalWrite(bluePin, HIGH);    // Zet blauw aan
+    Serial.println("blauw is aan");  // Correcte functie voor printen
+}
+
     }
   }
 };
